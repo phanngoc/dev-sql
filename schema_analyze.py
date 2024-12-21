@@ -11,7 +11,7 @@ import MySQLdb              # <------- HERE!
 from langchain_community.utilities import SQLDatabase
 from langchain_core.output_parsers.openai_tools import PydanticToolsParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 from typing import List
 from operator import itemgetter
 from typing import List
@@ -28,6 +28,7 @@ db = SQLDatabase.from_uri("mysql://root:root@localhost:13306/eccubedb")
 
 
 from langchain_openai import ChatOpenAI
+import logging
 llm = ChatOpenAI(model="gpt-4o-mini")
 
 import mysql.connector
@@ -123,10 +124,19 @@ def get_tables(categories: List[Table]) -> List[str]:
         tables.append(category.name)
     return tables
 
-table_chain = prompt | llm_with_tools | output_parser | get_tables
-query_chain = create_sql_query_chain(llm, db)
-table_chain = {"input": itemgetter("question")} | table_chain
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
+def log_step(step_name, data):
+    logger.debug(f"{step_name}: {data}")
+    print(f"{step_name}", data)
+    return data
+
+table_chain = prompt | llm_with_tools | output_parser | get_tables | (lambda x: log_step("Table Chain Output", x))
+query_chain = create_sql_query_chain(llm, db) | (lambda x: log_step("Query Chain Output", x))
+
+table_chain = {"input": itemgetter("question")} | table_chain
 
 full_chain = RunnablePassthrough.assign(table_names_to_use=table_chain) | query_chain
 
