@@ -18,6 +18,7 @@ from typing import List
 from langchain.chains import create_sql_query_chain
 from langchain_core.runnables import RunnablePassthrough
 from model import Message
+from few_shot import few_shot_prompt
 
 load_dotenv('.env')
 
@@ -143,6 +144,9 @@ class SchemaChain:
         logging.basicConfig(level=logging.DEBUG)
         self.logger = logging.getLogger(__name__)
 
+    def set_table_name_list(self, table_name_list):
+        self.table_name_list = table_name_list
+
     def _setup_chain(self):
         table_names = "\n".join(self.table_name_list)
         system = f"""Return the names of ALL the SQL tables that MIGHT be relevant to the user question. \
@@ -151,8 +155,6 @@ class SchemaChain:
         {table_names}
 
         Remember to include ALL POTENTIALLY RELEVANT tables, even if you're not sure that they're needed."""
-
-        from few_shot import few_shot_prompt
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -183,15 +185,17 @@ class SchemaChain:
         table_chain = {"input": itemgetter("question")} | table_chain
         self.full_chain = RunnablePassthrough.assign(table_names_to_use=table_chain) | query_chain
 
-    def generate_sql(self, query):
-        return self.full_chain.invoke({"question": query})
+    def generate_sql(self, query, valid_tables = []):
+        if not valid_tables:
+            return self.full_chain.invoke({"question": query})
+        else:
+            self.set_table_name_list(valid_tables)
+            self._setup_chain()
+            return self.full_chain.invoke({"question": query})
     
 
-
-
 schema_chain = SchemaChain(table_name_list, llm, db)
-sql_query = schema_chain.generate_sql("Your query here")
 
-def generate_sql(query):
-    sql_query = schema_chain.generate_sql(query)
+def generate_sql(query, valid_tables):
+    sql_query = schema_chain.generate_sql(query, valid_tables)
     return sql_query
