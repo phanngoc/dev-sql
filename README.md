@@ -8,6 +8,8 @@ Mình tạo ra tool này để tận dụng openAI cho việc truy vấn bằng 
 
 Có opensource hết rồi các bạn, langchain community, cứ thể ráp vào triển thôi :D
 
+![chat-sql-query](demo.png)
+
 ------------------------------------------------------------------------------------
 
 For developers, writing SQL queries is a frequent task, especially daily queries for checking data, searching for information, statistics, etc.
